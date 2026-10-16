@@ -1,0 +1,33 @@
+{
+  "name": "vscode-controller",
+  "displayName": "VS Code Controller",
+  "description": "Exposes a local TCP socket with a JSON-RPC API to remotely control VS Code and GitHub Copilot Chat",
+  "version": "0.1.0",
+  "publisher": "waldekmastykarz",
+  "engines": {
+    "vscode": "^1.140.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -watch -p tsconfig.json",
+    "test": "npm run build && node --test \"out/test/**/*.test.js\"",
+    "package": "npm run build && vsce package --skip-license --allow-missing-repository --no-rewrite-relative-links"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/vscode": "~1.140.0",
+    "@vscode/vsce": "^4.0.0",
+    "typescript": "^5.9.2"
+  }
+}
