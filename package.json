@@ -1,14 +1,38 @@
 {
   "name": "vscode-controller",
   "displayName": "VS Code Controller",
-  "description": "Exposes a local TCP socket with a JSON-RPC API to remotely control VS Code and GitHub Copilot Chat",
+  "description": "Drive VS Code and GitHub Copilot Chat from scripts, tests and agents over a local JSON-RPC socket",
   "version": "0.1.0",
-  "publisher": "waldekmastykarz",
+  "publisher": "waldek",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/waldekmastykarz/vsc-vscodecontroller.git"
+  },
+  "bugs": {
+    "url": "https://github.com/waldekmastykarz/vsc-vscodecontroller/issues"
+  },
+  "homepage": "https://github.com/waldekmastykarz/vsc-vscodecontroller#readme",
   "engines": {
     "vscode": "^1.140.0"
   },
   "categories": [
+    "AI",
+    "Chat",
+    "Testing",
     "Other"
+  ],
+  "keywords": [
+    "copilot",
+    "github copilot",
+    "automation",
+    "json-rpc",
+    "remote control",
+    "agent",
+    "evaluation",
+    "mcp",
+    "testing"
   ],
   "extensionKind": [
     "ui",
@@ -19,10 +43,11 @@
   ],
   "main": "./out/extension.js",
   "scripts": {
+    "vscode:prepublish": "npm run build",
     "build": "tsc -p tsconfig.json",
     "watch": "tsc -watch -p tsconfig.json",
     "test": "npm run build && node --test \"out/test/**/*.test.js\"",
-    "package": "npm run build && vsce package --skip-license --allow-missing-repository --no-rewrite-relative-links"
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
