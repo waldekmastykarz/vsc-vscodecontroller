@@ -1,8 +1,10 @@
+.github/**
 .vscode/**
 .tmp/**
 src/**
 examples/**
 out/test/**
 **/*.map
+**/*.vsix
 tsconfig.json
 .gitignore
