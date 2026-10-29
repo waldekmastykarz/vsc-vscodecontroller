@@ -1,25 +1,74 @@
 # VS Code Controller
 
-A VS Code extension that opens a local TCP socket so you can remotely control VS Code and GitHub Copilot Chat. It speaks [JSON-RPC 2.0](https://www.jsonrpc.org/specification) over newline-delimited JSON. Each method maps to a VS Code command, so clients don't depend on the workbench DOM the way UI automation does.
+[![VS Code Marketplace](https://vsmarketplacebadges.dev/version/waldek.vscode-controller.svg)](https://marketplace.visualstudio.com/items?itemName=waldek.vscode-controller)
+[![Installs](https://vsmarketplacebadges.dev/installs-short/waldek.vscode-controller.svg)](https://marketplace.visualstudio.com/items?itemName=waldek.vscode-controller)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Requirements
+**Script VS Code and GitHub Copilot Chat like an API.** Start a chat, pick the model and agent, send a prompt, wait for the result and keep the edits, all from your own code. No clicking through the UI and no fragile automation of the workbench DOM.
 
-- Stable VS Code 1.140 or newer (verified on 1.142)
-- GitHub Copilot Chat signed in, for the chat methods
-
-## Build and install
-
-```sh
-npm install
-npm run package                                  # builds vscode-controller-0.1.0.vsix
-code --install-extension vscode-controller-0.1.0.vsix
+```text
+→ {"jsonrpc":"2.0","id":1,"method":"authenticate","params":{"token":"<token>"}}
+→ {"jsonrpc":"2.0","id":2,"method":"chat.selectModel","params":{"name":"Example Model"}}
+→ {"jsonrpc":"2.0","id":3,"method":"chat.sendPrompt","params":{"prompt":"Add unit tests for src/utils.ts"}}
+← {"jsonrpc":"2.0","id":3,"result":{ ... chat result ... }}
 ```
 
-To run from source without installing, launch VS Code with `--extensionDevelopmentPath=/path/to/this/folder`.
+## Why
 
-## Enable the socket
+You want to run the same prompt against several models, benchmark agents, reproduce a Copilot bug or run Copilot Chat in CI. The usual way is UI automation that clicks through the workbench, and it breaks every time VS Code changes a selector or a layout.
 
-The extension does nothing unless you set these environment variables on the VS Code process. The client that launches VS Code chooses the values, so it already knows which port and token belong to which instance.
+VS Code Controller opens a local [JSON-RPC 2.0](https://www.jsonrpc.org/specification) socket inside VS Code. Each method maps to a VS Code command, so your scripts use the same stable entry points that the UI uses. Any language that can open a TCP socket can drive it.
+
+## Features
+
+- **Full Copilot Chat run from code**: start a new chat, choose the harness, model and mode, send a prompt and wait for the response
+- **Verified runs**: after each prompt, the extension checks that the request really ran with the harness and model you asked for, because VS Code silently falls back when it can't use them
+- **Unattended runs**: accept tool calls, cancel on timeout, kill terminals, clear notifications and keep all edits
+- **MCP control**: start or restart MCP servers and wait until their tools are live
+- **Any VS Code command**: call `executeCommand` with any command ID and JSON arguments, including URIs
+- **Settings**: read effective setting values and write workspace settings
+- **Many windows, many instances**: give each VS Code process its own port and token, and bind the socket to a specific workspace
+- **Off by default and authenticated**: the socket starts only when you set the environment variables, listens on `127.0.0.1` only, and requires a token
+- **Zero-dependency client**: a Node.js [client library and CLI](examples/client.mjs) and a complete [prompt runner](examples/run-prompt.mjs) to start from
+
+## Getting started
+
+### 1. Install the extension
+
+Install [VS Code Controller](https://marketplace.visualstudio.com/items?itemName=waldek.vscode-controller) from the Marketplace, or run:
+
+```sh
+code --install-extension waldek.vscode-controller
+```
+
+Requirements: stable VS Code 1.140 or newer (verified on 1.142), and GitHub Copilot Chat signed in for the chat methods.
+
+### 2. Launch VS Code with a port and token
+
+The extension does nothing until you set these environment variables on the VS Code process:
+
+```sh
+export VSCODE_CONTROLLER_PORT=7001
+export VSCODE_CONTROLLER_TOKEN="$(openssl rand -hex 32)"
+VSCODE_CONTROLLER_WORKSPACE=/path/to/workspace \
+"/Applications/Visual Studio Code.app/Contents/MacOS/Code" /path/to/workspace &
+```
+
+### 3. Send commands
+
+Clone this repository for the [example client](examples/client.mjs). In the same shell, check the connection and run a prompt:
+
+```sh
+git clone https://github.com/waldekmastykarz/vsc-vscodecontroller.git && cd vsc-vscodecontroller
+node examples/client.mjs getStatus
+node examples/run-prompt.mjs "Add a README" --model "Example Model" --mode agent --timeout 600000
+```
+
+Or connect from any language: open a TCP connection to `127.0.0.1:7001`, send one JSON-RPC message per line, and call `authenticate` first.
+
+## Configuration
+
+The client that launches VS Code chooses the values, so it already knows which port and token belong to which instance.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
@@ -27,16 +76,29 @@ The extension does nothing unless you set these environment variables on the VS 
 | `VSCODE_CONTROLLER_TOKEN` | Yes | Secret that clients must send in `authenticate` before any other call. Use a long random value. Without it, the socket doesn't start. |
 | `VSCODE_CONTROLLER_WORKSPACE` | No | Folder or `.code-workspace` path. Only the window that has it open listens. Use it whenever the VS Code process can have more than one window, for example windows restored from the previous session or opened later. Those windows inherit the same environment variables and also try to open the port. Without it, whichever window starts first gets the socket, which may not be the workspace you launched. The others log `EADDRINUSE`. |
 
-```sh
-VSCODE_CONTROLLER_PORT=7001 \
-VSCODE_CONTROLLER_TOKEN="$(openssl rand -hex 32)" \
-VSCODE_CONTROLLER_WORKSPACE=/path/to/workspace \
-"/Applications/Visual Studio Code.app/Contents/MacOS/Code" /path/to/workspace
-```
-
 If VS Code is already running with the same user data directory, the launch is forwarded to the existing process. The new window gets that process's environment variables, not the ones you launched with. Close VS Code first or use a separate `--user-data-dir`.
 
 Diagnostics appear in the **VS Code Controller** output channel.
+
+## Security
+
+Anyone who has the token can do anything that VS Code can do: run any command, edit files, change settings, open terminals and run Copilot agents with your credentials. Treat the token like a password.
+
+The extension limits who can connect:
+
+- **Off by default.** Without `VSCODE_CONTROLLER_PORT` and `VSCODE_CONTROLLER_TOKEN`, the extension doesn't open a socket.
+- **Local only.** The socket binds to `127.0.0.1`, so other machines on your network can't reach it.
+- **Token required.** Every connection must call `authenticate` before any other method. The token is compared in constant time, and a wrong token closes the connection.
+- **Message size limit.** Messages over 10 MB are rejected and close the connection.
+
+What you should do:
+
+- Generate a long random token for each launch, for example `openssl rand -hex 32`, and don't commit it or write it to logs.
+- Don't forward or expose the port, for example with SSH tunnels, VS Code port forwarding, containers that publish ports or a reverse proxy.
+- Remember that every process running as your user can connect to `127.0.0.1` and can usually read VS Code's environment variables. Use the controller on machines and accounts that you trust, such as your own workstation, a CI runner or a disposable VM.
+- When you don't need the controller, launch VS Code without the environment variables or disable the extension.
+
+To report a security issue, open an [issue](https://github.com/waldekmastykarz/vsc-vscodecontroller/issues) without exploit details, and ask for a private channel.
 
 ## Protocol
 
@@ -144,7 +206,13 @@ Arguments are plain JSON. For commands that expect a URI, pass a marshalled URI,
 ## Development
 
 ```sh
-npm test        # builds and runs the unit tests
+npm install
+npm test           # builds and runs the unit tests
+npm run package    # builds vscode-controller-<version>.vsix
 ```
 
-The `Run Extension` launch configuration starts an Extension Development Host with the socket enabled on port 7001 and token `dev-token`.
+The `Run Extension` launch configuration starts an Extension Development Host with the socket enabled on port 7001 and token `dev-token`. To run from source without the debugger, launch VS Code with `--extensionDevelopmentPath=/path/to/this/folder`.
+
+## License
+
+[MIT](LICENSE)
