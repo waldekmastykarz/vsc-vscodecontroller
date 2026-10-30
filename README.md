@@ -188,6 +188,12 @@ node examples/client.mjs chat.selectModel '{"name":"Example Model"}'
 node examples/run-prompt.mjs "Add a README" --model "Example Model" --mode agent --timeout 600000
 ```
 
+If several models share a display name, `--model` fails with `Multiple language models are named…` and lists the matches in `error.data.matches`. Pass `--model-id` with one of the listed IDs instead. The extension derives the vendor from the harness, or you can set it with `--model-vendor`.
+
+```sh
+node examples/run-prompt.mjs "Add a README" --harness local --model-id example-model --mode agent --timeout 600000
+```
+
 ### Passing URIs to `executeCommand`
 
 Arguments are plain JSON. For commands that expect a URI, pass a marshalled URI, which VS Code revives automatically:

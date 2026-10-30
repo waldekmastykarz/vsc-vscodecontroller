@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Added
+
+- `--model-id` and `--model-vendor` options in `examples/run-prompt.mjs` to select a model when several share a display name
+
 ## [0.1.0] - 2026-10-29
 
 ### Added
