@@ -9,6 +9,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
@@ -16,4 +19,4 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm test
-      - run: npx vsce publish -p ${{ secrets.VSCE_PAT }}
+      - run: npx @vscode/vsce publish --oidc
